@@ -16,3 +16,9 @@ type User struct {
 	IsActive     bool      `json:"is_active" db:"is_active"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 }
+
+type Message struct {
+	Email   string `json:"email"`
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+}

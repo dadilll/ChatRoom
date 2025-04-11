@@ -7,8 +7,8 @@ import (
 	"service_auth/pkg/db/postgres"
 	"service_auth/pkg/db/redis"
 	"service_auth/pkg/jwt"
+	"service_auth/pkg/kafka"
 	"service_auth/pkg/logger"
-	"service_auth/pkg/mailer"
 )
 
 const serviceName = "Auth_service"
@@ -17,12 +17,6 @@ func main() {
 	ctx := context.Background()
 	Logger := logger.New(serviceName)
 	ctx = context.WithValue(ctx, logger.LoggerKey, Logger)
-
-	mailerCfg, err := config.LoadMailerConfig()
-	if err != nil {
-		Logger.Error(ctx, "Error loading mailer config: "+err.Error())
-		return
-	}
 
 	cfg := config.New()
 	if cfg == nil {
@@ -53,10 +47,9 @@ func main() {
 		Logger.Error(ctx, "Error loaded private key: "+err.Error())
 	}
 
-	mailer := mailer.NewSMTPMailer(*mailerCfg)
+	kafkaWriter := kafka.NewWriterFromConfig(cfg.ConfigKafka)
 
-	// инициализируем сервер
-	e := server.New(db.Db, Logger, privateKey, rdb, mailer)
+	e := server.New(db.Db, Logger, privateKey, rdb, kafkaWriter)
 
 	httpServer := server.Start(e, Logger, cfg.HTTPServerPort)
 

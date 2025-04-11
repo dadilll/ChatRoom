@@ -6,19 +6,19 @@ import (
 	middleware "service_auth/internal/middelware"
 	"service_auth/internal/service"
 	"service_auth/internal/storage"
+	"service_auth/pkg/kafka"
 	"service_auth/pkg/logger"
-	"service_auth/pkg/mailer"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 )
 
-func SetupRoutes(e *echo.Echo, db *sqlx.DB, Logger logger.Logger, privateKey *rsa.PrivateKey, mailer mailer.Mailer, rdb *redis.Client) {
+func SetupRoutes(e *echo.Echo, db *sqlx.DB, Logger logger.Logger, privateKey *rsa.PrivateKey, rdb *redis.Client, kafkaWriter *kafka.KafkaWriter) {
 	userStorage := storage.NewUserStorage(db.DB)
 	userStorageRedis := storage.NewRedisStorage(rdb)
 
-	userService := service.NewUserService(userStorage, userStorageRedis, Logger, privateKey, mailer)
+	userService := service.NewUserService(userStorage, userStorageRedis, Logger, privateKey, kafkaWriter)
 	userHandler := handler.NewUserHandler(userService, Logger)
 
 	e.POST("api/auth/login", userHandler.Login)
@@ -32,4 +32,5 @@ func SetupRoutes(e *echo.Echo, db *sqlx.DB, Logger logger.Logger, privateKey *rs
 	authGroup.POST("/email/confirm/send", userHandler.SendCodeEmail)
 	authGroup.POST("/email/confirm/code", userHandler.ConfirmEmail)
 	authGroup.POST("/email/change", userHandler.ChangeEmail)
+	//authGroup.GET("/profile/{ID}", userHandler.GetProfileId)
 }

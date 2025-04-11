@@ -20,6 +20,17 @@ type UserRequestProfile struct {
 	Birthday    time.Time `json:"birthday"`
 }
 
+// заготовка
+type UserRequestProfileGet struct {
+	Username     string    `json:"username"`
+	Bio          string    `json:"bio"`
+	AvatarURL    string    `json:"avatarURL"`
+	Description  string    `json:"description"`
+	Birthday     time.Time `json:"birthday"`
+	IsActive     bool      `json:"is_active" db:"is_active"`
+	FriendsCount int       `json:"friends_count" db:"friends_count"`
+}
+
 type UserRequestLogin struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`

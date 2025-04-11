@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  reviewservice:
+  auth_service:
     build:
       context: .
       dockerfile: Dockerfile
@@ -22,7 +22,7 @@ services:
       - "8.8.8.8"  
       - "8.8.4.4"
 
-  db:
+  auth_service_db:
     image: postgres:15
     environment:
       POSTGRES_USER: postgres_user
@@ -38,7 +38,7 @@ services:
     networks:
       - app-network
 
-  redis:
+  auth_service_redis:
     image: redis:7
     command: redis-server --requirepass "^G#z2v!QeA9pL1uN@k8rS"
     environment:

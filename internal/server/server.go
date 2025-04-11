@@ -8,8 +8,8 @@ import (
 	"os"
 	"os/signal"
 	"service_auth/internal/router"
+	"service_auth/pkg/kafka"
 	"service_auth/pkg/logger"
-	"service_auth/pkg/mailer"
 	"syscall"
 	"time"
 
@@ -18,9 +18,9 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func New(db *sqlx.DB, Logger logger.Logger, privateKey *rsa.PrivateKey, rdb *redis.Client, mailer mailer.Mailer) *echo.Echo {
+func New(db *sqlx.DB, Logger logger.Logger, privateKey *rsa.PrivateKey, rdb *redis.Client, kafkaWriter *kafka.KafkaWriter) *echo.Echo {
 	e := echo.New()
-	router.SetupRoutes(e, db, Logger, privateKey, mailer, rdb)
+	router.SetupRoutes(e, db, Logger, privateKey, rdb, kafkaWriter)
 	return e
 }
 func Start(server *echo.Echo, Logger logger.Logger, port int) *http.Server {

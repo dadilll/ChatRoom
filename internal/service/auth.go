@@ -4,15 +4,17 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"regexp"
 	"service_auth/internal/models"
 	"service_auth/internal/storage"
 	"service_auth/pkg/jwt"
+	"service_auth/pkg/kafka"
 	"service_auth/pkg/logger"
-	"service_auth/pkg/mailer"
 	"strings"
 	"time"
 	"unicode"
@@ -39,16 +41,16 @@ type userService struct {
 	logger      logger.Logger
 	redis       storage.UserStorageRedis
 	privateKey  *rsa.PrivateKey
-	mailer      mailer.Mailer
+	kafkaWriter *kafka.KafkaWriter
 }
 
-func NewUserService(userStorage storage.UserStorage, redis storage.UserStorageRedis, log logger.Logger, privateKey *rsa.PrivateKey, mailer mailer.Mailer) UserService {
+func NewUserService(userStorage storage.UserStorage, redis storage.UserStorageRedis, log logger.Logger, privateKey *rsa.PrivateKey, kafkaWriter *kafka.KafkaWriter) UserService {
 	return &userService{
 		userStorage: userStorage,
 		redis:       redis,
 		logger:      log,
 		privateKey:  privateKey,
-		mailer:      mailer,
+		kafkaWriter: kafkaWriter,
 	}
 }
 
@@ -237,12 +239,22 @@ func (s *userService) SendConfirmationCode(userID string) error {
 		return fmt.Errorf("временная ошибка")
 	}
 
-	subject := "Подтверждение почты"
-	body := fmt.Sprintf("Ваш код подтверждения: %s", code)
-	err = s.mailer.Send(user.Email, subject, body)
+	message := models.Message{
+		Email:   user.Email,
+		Subject: "Подтверждение почты",
+		Body:    fmt.Sprintf("Ваш код подтверждения: %s", code),
+	}
+
+	msgBytes, err := json.Marshal(message)
 	if err != nil {
-		s.logger.Error(context.Background(), "Ошибка отправки письма", zap.Error(err))
-		return fmt.Errorf("не удалось отправить письмо")
+		log.Printf("Ошибка маршалинга сообщения: %v", err)
+		return fmt.Errorf("не удалось подготовить сообщение")
+	}
+
+	err = s.kafkaWriter.WriteMessage(context.Background(), msgBytes)
+	if err != nil {
+		log.Printf("Ошибка отправки сообщения в Kafka: %v", err)
+		return fmt.Errorf("не удалось отправить сообщение в Kafka")
 	}
 
 	return nil

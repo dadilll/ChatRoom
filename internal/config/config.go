@@ -4,6 +4,7 @@ import (
 	"fmt"
 	postgres "service_auth/pkg/db/postgres"
 	redis "service_auth/pkg/db/redis"
+	"service_auth/pkg/kafka"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -11,6 +12,7 @@ import (
 type Config struct {
 	postgres.ConfigPostgres
 	redis.ConfigRedis
+	kafka.ConfigKafka
 
 	HTTPServerPort int    `env:"HTTP_SERVER_PORT" env-default:"8080"`
 	PrivateKeyPath string `env:"PRIVATE_KEY_PATH" env-default:"key/private.pem"`
