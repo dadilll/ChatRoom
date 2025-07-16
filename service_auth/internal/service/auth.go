@@ -120,7 +120,6 @@ func (s *userService) Register(request models.UserRequestRegister) (*models.User
 		Description: request.Description,
 		Birthday:    request.Birthday,
 		IsVerified:  false,
-		IsActive:    true, //заглушка
 		CreatedAt:   time.Now(),
 	}
 

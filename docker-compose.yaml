@@ -1,14 +1,12 @@
-version: "3.9"
-
 services:
   auth_service:
     build:
-      context: /home/danil/Рабочий стол/chatRoom/service_auth
+      context: /home/danil/Project/chatRoom/service_auth
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
     depends_on:
-      db:
+      auth_db:
         condition: service_healthy
       redis:
         condition: service_started
@@ -22,12 +20,31 @@ services:
       - "8.8.8.8"
       - "8.8.4.4"
 
+  room_service:
+    build:
+      context: /home/danil/Project/chatRoom/room_service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    depends_on:
+      room_db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      CONFIG_PATH: /app/conf/conf.env
+    networks:
+      - app-network
+    dns:
+      - "8.8.8.8"
+      - "8.8.4.4"
+
   notification_service:
     build:
-      context: /home/danil/Рабочий стол/chatRoom/notification_service
-      dockerfile: dockerfile
+      context: /home/danil/Project/chatRoom/notification_service
+      dockerfile: Dockerfile
     ports:
-      - "8081:8080" 
+      - "8082:8080"
     depends_on:
       kafka:
         condition: service_started
@@ -40,7 +57,7 @@ services:
       - "8.8.8.8"
       - "8.8.4.4"
 
-  db:
+  auth_db:
     image: postgres:15
     environment:
       POSTGRES_USER: postgres_user
@@ -50,6 +67,25 @@ services:
       - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres_user -d authservice"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    dns:
+      - "8.8.8.8"
+      - "8.8.4.4"
+
+  room_db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres_user
+      POSTGRES_PASSWORD: P0stgr3sS3cur3
+      POSTGRES_DB: roomservice
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres_user -d roomservice"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -77,16 +113,26 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 10
+      ZOOKEEPER_SYNC_LIMIT: 5
+    healthcheck:
+      test: ["CMD-SHELL", "echo stat | nc 127.0.0.1 2181 | grep Mode"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - app-network
-    dns:
-      - "8.8.8.8"
-      - "8.8.4.4"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
     environment:
@@ -94,11 +140,23 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms256M"  # Лимиты памяти для JVM
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
     networks:
       - app-network
-    dns:
-      - "8.8.8.8"
-      - "8.8.4.4"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
 networks:
   app-network:

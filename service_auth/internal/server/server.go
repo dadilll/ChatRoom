@@ -18,9 +18,9 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func New(db *sqlx.DB, Logger logger.Logger, privateKey *rsa.PrivateKey, rdb *redis.Client, kafkaWriter *kafka.KafkaWriter) *echo.Echo {
+func New(db *sqlx.DB, Logger logger.Logger, privateKey *rsa.PrivateKey, rdb *redis.Client, kafkaWriter *kafka.KafkaWriter, publicKey *rsa.PublicKey) *echo.Echo {
 	e := echo.New()
-	router.SetupRoutes(e, db, Logger, privateKey, rdb, kafkaWriter)
+	router.SetupRoutes(e, db, Logger, privateKey, rdb, kafkaWriter, publicKey)
 	return e
 }
 func Start(server *echo.Echo, Logger logger.Logger, port int) *http.Server {

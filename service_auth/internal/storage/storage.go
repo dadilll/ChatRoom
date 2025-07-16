@@ -25,8 +25,8 @@ func NewUserStorage(db *sql.DB) UserStorage {
 
 func (s *userStorage) CreateUser(user *models.User) error {
 	query := `
-	INSERT INTO users (email, password, username, bio, avatar_url, description, birthday, is_verified, is_active, created_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, false, true, NOW()) RETURNING id`
+	INSERT INTO users (email, password, username, bio, avatar_url, description, birthday, is_verified, created_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW()) RETURNING id`
 
 	err := s.db.QueryRow(query,
 		user.Email,
@@ -41,7 +41,7 @@ func (s *userStorage) CreateUser(user *models.User) error {
 }
 
 func (s *userStorage) GetUserByEmail(email string) (*models.User, error) {
-	query := `SELECT id, email, password, username, is_verified, is_active FROM users WHERE email = $1`
+	query := `SELECT id, email, password, username, is_verified FROM users WHERE email = $1`
 	user := &models.User{}
 	err := s.db.QueryRow(query, email).Scan(
 		&user.ID,
@@ -49,7 +49,6 @@ func (s *userStorage) GetUserByEmail(email string) (*models.User, error) {
 		&user.Password,
 		&user.Username,
 		&user.IsVerified,
-		&user.IsActive,
 	)
 	if err != nil {
 		return nil, err
@@ -95,7 +94,7 @@ func (s *userStorage) UpdateUserProfile(userID string, profile *models.UserReque
 }
 
 func (s *userStorage) UpdatePassword(userID string, newHashedPassword string) error {
-	query := `UPDATE users SET password_hash = $1 WHERE id = $2`
+	query := `UPDATE users SET password = $1 WHERE id = $2`
 	_, err := s.db.Exec(query, newHashedPassword, userID)
 	return err
 }

@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  room_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      room_service_db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      CONFIG_PATH: /app/conf/conf.env
+    networks:
+      - app-network
+
+  room_service_db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres_user
+      POSTGRES_PASSWORD: P0stgr3sS3cur3
+      POSTGRES_DB: roomservice
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres_user -d roomservice"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

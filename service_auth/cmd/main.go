@@ -47,9 +47,14 @@ func main() {
 		Logger.Error(ctx, "Error loaded private key: "+err.Error())
 	}
 
+	publicKey, err := jwt.LoadPublicKey(cfg.PublicKeyPath)
+	if err != nil {
+		Logger.Error(ctx, "Error loaded private key: "+err.Error())
+	}
+
 	kafkaWriter := kafka.NewWriterFromConfig(cfg.ConfigKafka)
 
-	e := server.New(db.Db, Logger, privateKey, rdb, kafkaWriter)
+	e := server.New(db.Db, Logger, privateKey, rdb, kafkaWriter, publicKey)
 
 	httpServer := server.Start(e, Logger, cfg.HTTPServerPort)
 

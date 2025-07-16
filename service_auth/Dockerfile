@@ -1,4 +1,4 @@
-FROM golang:1.23 AS builder
+FROM golang:1.24.3 AS builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s" -o auth_service ./cmd
+    -ldflags="-w -s" -o auth_service ./cmd/
 
 FROM alpine:latest
 
