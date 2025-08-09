@@ -5,6 +5,7 @@ import (
 	"room_service/internal/models"
 	"room_service/internal/service"
 	"room_service/pkg/logger"
+	"room_service/pkg/validator"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -12,30 +13,43 @@ import (
 )
 
 type MemberHandler struct {
-	service service.MemberService
-	logger  logger.Logger
+	service   service.MemberService
+	logger    logger.Logger
+	validator *validator.CustomValidator
 }
 
-func NewMemberHandler(s service.MemberService, l logger.Logger) *MemberHandler {
+func NewMemberHandler(s service.MemberService, l logger.Logger, v *validator.CustomValidator) *MemberHandler {
 	return &MemberHandler{
-		service: s,
-		logger:  l,
+		service:   s,
+		logger:    l,
+		validator: v,
 	}
 }
 
 func (h *MemberHandler) AddMember(c echo.Context) error {
-	ctx := c.Request().Context()
-	roomID := c.Param("room_id")
+	req := models.AddMemberRequest{
+		RoomID: c.Param("room_id"),
+	}
 
-	userID, _ := c.Get("userID").(string)
+	if errs := h.validator.Validate(&req); errs != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error":  "validation failed",
+			"fields": errs,
+		})
+	}
+
+	userID, ok := c.Get("userID").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	}
 
 	member := models.RoomMember{
-		RoomID:   roomID,
+		RoomID:   req.RoomID,
 		UserID:   userID,
 		JoinedAt: time.Now(),
 	}
 
-	err := h.service.AddMember(ctx, member)
+	err := h.service.AddMember(c.Request().Context(), member)
 	if err != nil {
 		switch err.Error() {
 		case "user already in room":
@@ -43,7 +57,7 @@ func (h *MemberHandler) AddMember(c echo.Context) error {
 		case "invite required":
 			return c.JSON(http.StatusForbidden, map[string]string{"error": "invite required"})
 		default:
-			h.logger.Error(ctx, "failed to join room", zap.Error(err))
+			h.logger.Error(c.Request().Context(), "failed to join room", zap.Error(err))
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to join room"})
 		}
 	}
@@ -52,32 +66,58 @@ func (h *MemberHandler) AddMember(c echo.Context) error {
 }
 
 func (h *MemberHandler) ListMembers(c echo.Context) error {
-	ctx := c.Request().Context()
+	req := models.ListMembersRequest{
+		RoomID: c.Param("room_id"),
+	}
 
-	roomID := c.Param("room_id")
-	members, err := h.service.ListMembers(ctx, roomID)
+	if errs := h.validator.Validate(&req); errs != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error":  "validation failed",
+			"fields": errs,
+		})
+	}
+
+	userID, ok := c.Get("userID").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	}
+
+	members, err := h.service.ListMembers(c.Request().Context(), req.RoomID, userID)
 	if err != nil {
-		h.logger.Error(ctx, "failed to list members", zap.String("room_id", roomID), zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get members"})
+		if err.Error() == "forbidden: not a member of the room" {
+			return c.JSON(http.StatusForbidden, map[string]string{"error": err.Error()})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
 	return c.JSON(http.StatusOK, members)
 }
 
 func (h *MemberHandler) RemoveMember(c echo.Context) error {
-	ctx := c.Request().Context()
-	roomID := c.Param("room_id")
-	targetUserID := c.Param("user_id")
+	req := models.RemoveMemberRequest{
+		RoomID: c.Param("room_id"),
+		UserID: c.Param("user_id"),
+	}
 
-	requesterID, _ := c.Get("userID").(string)
+	if errs := h.validator.Validate(&req); errs != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error":  "validation failed",
+			"fields": errs,
+		})
+	}
 
-	err := h.service.RemoveMember(ctx, roomID, targetUserID, requesterID)
+	requesterID, ok := c.Get("userID").(string)
+	if !ok || requesterID == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	}
+
+	err := h.service.RemoveMember(c.Request().Context(), req.RoomID, req.UserID, requesterID)
 	if err != nil {
 		if err.Error() == "cannot remove other members" {
 			return c.JSON(http.StatusForbidden, map[string]string{"error": "you can only leave the room yourself"})
 		}
 
-		h.logger.Error(ctx, "failed to leave room", zap.Error(err))
+		h.logger.Error(c.Request().Context(), "failed to leave room", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to leave room"})
 	}
 

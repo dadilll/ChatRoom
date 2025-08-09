@@ -12,7 +12,7 @@ type RoleStorage interface {
 	CreateRole(ctx context.Context, role *models.Role) error
 	GetRole(ctx context.Context, roleID string) (*models.Role, error)
 	GetRoomRoles(ctx context.Context, roomID string) ([]*models.Role, error)
-	UpdateRole(ctx context.Context, roleID string, update *models.UpdateRole) error
+	UpdateRole(ctx context.Context, roleID string, role *models.Role) error
 	DeleteRole(ctx context.Context, roleID string) error
 	AssignRole(ctx context.Context, roomID, userID, roleID string) error
 	RemoveRole(ctx context.Context, roomID, userID string) error
@@ -114,22 +114,21 @@ func (s *roleStorage) GetRoomRoles(ctx context.Context, roomID string) ([]*model
 	return roles, nil
 }
 
-func (s *roleStorage) UpdateRole(ctx context.Context, roleID string, update *models.UpdateRole) error {
+func (s *roleStorage) UpdateRole(ctx context.Context, roleID string, role *models.Role) error {
 	query := `
         UPDATE roles 
-        SET name = COALESCE($1, name),
-            color = COALESCE($2, color),
-            priority = COALESCE($3, priority),
-            permissions = COALESCE($4, permissions),
+        SET name = $1,
+            color = $2,
+            priority = $3,
+            permissions = $4,
             updated_at = $5
         WHERE id = $6
     `
-
 	_, err := s.db.ExecContext(ctx, query,
-		update.Name,
-		update.Color,
-		update.Priority,
-		update.Permissions,
+		role.Name,
+		role.Color,
+		role.Priority,
+		role.Permissions,
 		time.Now(),
 		roleID,
 	)
@@ -143,7 +142,6 @@ func (s *roleStorage) DeleteRole(ctx context.Context, roleID string) error {
 }
 
 func (s *roleStorage) AssignRole(ctx context.Context, roomID, userID, roleID string) error {
-	// Сначала удаляем текущую роль пользователя
 	err := s.RemoveRole(ctx, roomID, userID)
 	if err != nil {
 		return err

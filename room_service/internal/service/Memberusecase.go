@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 
-	"go.uber.org/zap"
 	"room_service/internal/models"
 	"room_service/internal/storage"
 	"room_service/pkg/logger"
+
+	"go.uber.org/zap"
 )
 
 type MemberService interface {
 	AddMember(ctx context.Context, member models.RoomMember) error
-	ListMembers(ctx context.Context, roomID string) ([]models.RoomMember, error)
+	ListMembers(ctx context.Context, roomID, userID string) ([]models.RoomMember, error)
 	RemoveMember(ctx context.Context, roomID, targetUserID, requesterID string) error
-	IsRoomPublic(roomID string) (bool, error)
+	IsRoomPublic(ctx context.Context, roomID string) (bool, error)
 	HasInvite(ctx context.Context, roomID, userID string) (bool, error)
 }
 
@@ -53,7 +54,7 @@ func (s *memberServicelmpl) AddMember(ctx context.Context, member models.RoomMem
 		return errors.New("user already in room")
 	}
 
-	isPublic, err := s.IsRoomPublic(member.RoomID)
+	isPublic, err := s.IsRoomPublic(ctx, member.RoomID)
 	if err != nil {
 		s.logger.Error(ctx, "failed to check if room is public", zap.Error(err))
 		return err
@@ -84,8 +85,15 @@ func (s *memberServicelmpl) AddMember(ctx context.Context, member models.RoomMem
 	s.logger.Info(ctx, "member added", zap.String("room_id", member.RoomID), zap.String("user_id", member.UserID))
 	return nil
 }
-func (s *memberServicelmpl) ListMembers(ctx context.Context, roomID string) ([]models.RoomMember, error) {
-	userID, _ := ctx.Value("userID").(string)
+
+func (s *memberServicelmpl) ListMembers(ctx context.Context, roomID, userID string) ([]models.RoomMember, error) {
+	if userID == "" {
+		s.logger.Error(ctx, "missing or invalid userID")
+		return nil, errors.New("unauthorized: missing user ID")
+	}
+
+	s.logger.Info(ctx, "checking membership", zap.String("room_id", roomID), zap.String("user_id", userID))
+
 	isMember, err := s.storage.IsMember(ctx, roomID, userID)
 	if err != nil {
 		s.logger.Error(ctx, "failed to check membership", zap.Error(err))
@@ -126,8 +134,8 @@ func (s *memberServicelmpl) RemoveMember(ctx context.Context, roomID, targetUser
 	return nil
 }
 
-func (s *memberServicelmpl) IsRoomPublic(roomID string) (bool, error) {
-	room, err := s.roomStorage.GetRoomByID(roomID)
+func (s *memberServicelmpl) IsRoomPublic(ctx context.Context, roomID string) (bool, error) {
+	room, err := s.roomStorage.GetRoomByID(ctx, roomID)
 	if err != nil {
 		return false, err
 	}

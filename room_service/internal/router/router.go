@@ -7,11 +7,12 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"room_service/internal/handler"
-	middleware "room_service/internal/middelware"
+	middleware "room_service/internal/middleware"
 	"room_service/internal/models"
 	"room_service/internal/service"
 	"room_service/internal/storage"
 	"room_service/pkg/logger"
+	"room_service/pkg/validator"
 )
 
 type Dependencies struct {
@@ -24,6 +25,7 @@ type Dependencies struct {
 }
 
 func setupDependencies(logger logger.Logger, db *sqlx.DB, publicKey *rsa.PublicKey) *Dependencies {
+	val := validator.New()
 	roomStorage := storage.NewRoomStorage(db.DB)
 	roleStorage := storage.NewRoleStorage(db.DB)
 	memberStorage := storage.NewRoomMemberStorage(db.DB)
@@ -33,12 +35,12 @@ func setupDependencies(logger logger.Logger, db *sqlx.DB, publicKey *rsa.PublicK
 	roomService := service.NewRoomService(logger, roomStorage)
 	roleService := service.NewRoleService(logger, roleStorage, roomStorage)
 	memberService := service.NewMemberService(memberStorage, roleService, logger, roomStorage, inviteService)
-	inviteHandler := handler.NewInviteHandler(inviteService)
+	inviteHandler := handler.NewInviteHandler(inviteService, logger, val)
 
 	return &Dependencies{
-		RoomHandler:   handler.NewRoomHandler(roomService, logger),
-		RoleHandler:   handler.NewRoleHandler(roleService, logger),
-		MemberHandler: handler.NewMemberHandler(memberService, logger),
+		RoomHandler:   handler.NewRoomHandler(roomService, logger, val),
+		RoleHandler:   handler.NewRoleHandler(roleService, logger, val),
+		MemberHandler: handler.NewMemberHandler(memberService, logger, val),
 		InviteHandler: inviteHandler,
 		PublicKey:     publicKey,
 		RoleService:   roleService,
@@ -60,7 +62,7 @@ func setupRoleRoutes(
 	g.POST("/rooms/:room_id/roles", h.CreateRole, requireManageRoles)
 	g.GET("/roles/:role_id", h.GetRole)
 	g.GET("/rooms/:room_id/roles", h.GetRoomRoles)
-	g.PUT("/roles/:role_id", h.UpdateRole, requireManageRoles)
+	g.PUT("/rooms/:room_id/roles/:role_id", h.UpdateRole, requireManageRoles)
 	g.DELETE("/roles/:role_id", h.DeleteRole, requireManageRoles)
 
 	g.PUT("/rooms/:room_id/members/:user_id/role", h.AssignRole, requireManageRoles)

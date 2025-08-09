@@ -1,24 +1,21 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Room struct {
-	ID          string    `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
+	ID          string    `json:"id" db:"id" validate:"required,uuid4"`
+	Name        string    `json:"name" db:"name" validate:"required,min=3,max=100"`
 	Private     bool      `json:"private" db:"private"`
-	Category    string    `json:"category" db:"category"`
-	UserCount   int       `json:"user_count" db:"user_count"`
-	Description string    `json:"description" db:"description"`
-	OwnerID     string    `json:"-" db:"owner_id"`
+	Category    string    `json:"category" db:"category" validate:"required,min=3,max=50"`
+	UserCount   int       `json:"user_count" db:"user_count" validate:"min=0"`
+	Description string    `json:"description" db:"description" validate:"max=300"`
+	OwnerID     string    `json:"-" db:"owner_id" validate:"required"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
-}
-
-type UpdateRoom struct {
-	Name        string `json:"name" db:"name"`
-	Private     bool   `json:"private" db:"private"`
-	Description string `json:"description" db:"description"`
-	Category    string `json:"category" db:"category"`
 }
 
 type RoomMember struct {
@@ -29,12 +26,12 @@ type RoomMember struct {
 }
 
 type Role struct {
-	ID          string    `json:"id" db:"id"`
-	RoomID      string    `json:"room_id" db:"room_id"`
-	Name        string    `json:"name" db:"name"`
-	Color       string    `json:"color" db:"color"`
-	Priority    int       `json:"priority" db:"priority"`
-	Permissions int64     `json:"permissions" db:"permissions"`
+	ID          string    `json:"id" db:"id" validate:"required,uuid4"`
+	RoomID      string    `json:"room_id" db:"room_id" validate:"required,uuid4"`
+	Name        string    `json:"name" db:"name" validate:"required,min=1,max=50"`
+	Color       string    `json:"color" db:"color" validate:"required,len=7"`
+	Priority    int       `json:"priority" db:"priority" validate:"min=0"`
+	Permissions int64     `json:"permissions" db:"permissions" validate:"min=0"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -47,19 +44,6 @@ const (
 	PermissionManageRoom              // 32 (100000) - Управление комнатой
 )
 
-type RoleWithMembers struct {
-	Role
-	Members []string `json:"members"`
-}
-
-type UpdateRole struct {
-	Name        *string `json:"name"`
-	Color       *string `json:"color"`
-	Priority    *int    `json:"priority"`
-	Permissions *int64  `json:"permissions"`
-}
-
-// Рекомендуется для статусов объявить константы:
 const (
 	InviteStatusPending  = "pending"
 	InviteStatusAccepted = "accepted"
@@ -67,25 +51,26 @@ const (
 )
 
 type RoomInvite struct {
-	ID        string    `json:"id" db:"id"`                 // UUID приглашения
-	RoomID    string    `json:"room_id" db:"room_id"`       // ID комнаты
-	InvitedID string    `json:"invited_id" db:"invited_id"` // ID приглашённого пользователя
-	SentByID  string    `json:"sent_by_id" db:"sent_by_id"` // ID пользователя, отправившего приглашение
-	Status    string    `json:"status" db:"status"`         // Статус приглашения ("pending", "accepted", "declined" и т.п.)
-	SentAt    time.Time `json:"sent_at" db:"sent_at"`       // Время отправки приглашения
+	ID        string    `json:"id" db:"id" validate:"required,uuid4"`
+	RoomID    string    `json:"room_id" db:"room_id" validate:"required,uuid4"`
+	InvitedID string    `json:"invited_id" db:"invited_id" validate:"required,uuid4"`
+	SentByID  string    `json:"sent_by_id" db:"sent_by_id" validate:"required,uuid4"`
+	Status    string    `json:"status" db:"status" validate:"required,oneof=pending accepted declined"`
+	SentAt    time.Time `json:"sent_at" db:"sent_at"`
 }
 
-type RoomResponse struct {
-	RoomID string `json:"id"`
-}
+func RoomFromCreateRequest(req CreateRoomRequest, ownerID string) Room {
+	now := time.Now()
 
-type SearchRoomParams struct {
-	Name     string `query:"name"`
-	Category string `query:"category"`
-}
-
-type CreateInviteRequest struct {
-	RoomID    string `json:"room_id" validate:"required"`
-	InvitedID string `json:"invited_id" validate:"required"`
-	SentByID  string `json:"sent_by_id" validate:"required"` // или получай из токена
+	return Room{
+		ID:          uuid.New().String(),
+		Name:        req.Name,
+		Private:     *req.Private,
+		Category:    req.Category,
+		UserCount:   1,
+		Description: req.Description,
+		OwnerID:     ownerID,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"room_service/internal/models"
 	"room_service/internal/service"
 	"room_service/pkg/logger"
+	"room_service/pkg/validator"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -13,12 +14,14 @@ import (
 type RoleHandler struct {
 	RoleService service.RoleService
 	logger      logger.Logger
+	validator   *validator.CustomValidator
 }
 
-func NewRoleHandler(roleService service.RoleService, log logger.Logger) *RoleHandler {
+func NewRoleHandler(roleService service.RoleService, log logger.Logger, val *validator.CustomValidator) *RoleHandler {
 	return &RoleHandler{
 		RoleService: roleService,
 		logger:      log,
+		validator:   val,
 	}
 }
 
@@ -31,7 +34,15 @@ func (h *RoleHandler) CreateRole(c echo.Context) error {
 	}
 
 	req.RoomID = roomID
-	role, err := h.RoleService.CreateRole(req)
+
+	if errs := h.validator.Validate(&req); errs != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error":  "validation failed",
+			"fields": errs,
+		})
+	}
+
+	role, err := h.RoleService.CreateRole(c.Request().Context(), req)
 	if err != nil {
 		h.logger.Error(c.Request().Context(), "failed to create role", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create role"})
@@ -43,7 +54,7 @@ func (h *RoleHandler) CreateRole(c echo.Context) error {
 func (h *RoleHandler) GetRole(c echo.Context) error {
 	roleID := c.Param("role_id")
 
-	role, err := h.RoleService.GetRole(roleID)
+	role, err := h.RoleService.GetRole(c.Request().Context(), roleID)
 	if err != nil {
 		h.logger.Error(c.Request().Context(), "failed to get role", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "role not found"})
@@ -55,7 +66,7 @@ func (h *RoleHandler) GetRole(c echo.Context) error {
 func (h *RoleHandler) GetRoomRoles(c echo.Context) error {
 	roomID := c.Param("room_id")
 
-	roles, err := h.RoleService.GetRolesByRoom(roomID)
+	roles, err := h.RoleService.GetRolesByRoom(c.Request().Context(), roomID)
 	if err != nil {
 		h.logger.Error(c.Request().Context(), "failed to get room roles", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get room roles"})
@@ -66,13 +77,21 @@ func (h *RoleHandler) GetRoomRoles(c echo.Context) error {
 
 func (h *RoleHandler) UpdateRole(c echo.Context) error {
 	roleID := c.Param("role_id")
+	roomID := c.Param("room_id")
 
-	var req models.UpdateRole
+	var req models.UpdateRoleRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
-	role, err := h.RoleService.UpdateRole(roleID, req)
+	if errs := h.validator.Validate(&req); errs != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error":  "validation failed",
+			"fields": errs,
+		})
+	}
+
+	role, err := h.RoleService.UpdateRole(c.Request().Context(), roleID, roomID, req)
 	if err != nil {
 		h.logger.Error(c.Request().Context(), "failed to update role", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update role"})
@@ -84,7 +103,7 @@ func (h *RoleHandler) UpdateRole(c echo.Context) error {
 func (h *RoleHandler) DeleteRole(c echo.Context) error {
 	roleID := c.Param("role_id")
 
-	err := h.RoleService.DeleteRole(roleID)
+	err := h.RoleService.DeleteRole(c.Request().Context(), roleID)
 	if err != nil {
 		h.logger.Error(c.Request().Context(), "failed to delete role", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete role"})
@@ -98,13 +117,20 @@ func (h *RoleHandler) AssignRole(c echo.Context) error {
 	userID := c.Param("user_id")
 
 	var req struct {
-		RoleID string `json:"role_id"`
+		RoleID string `json:"role_id" validate:"required,uuid4"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
-	err := h.RoleService.AssignRole(roomID, userID, req.RoleID)
+	if errs := h.validator.Validate(&req); errs != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error":  "validation failed",
+			"fields": errs,
+		})
+	}
+
+	err := h.RoleService.AssignRole(c.Request().Context(), roomID, userID, req.RoleID)
 	if err != nil {
 		h.logger.Error(c.Request().Context(), "failed to assign role", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to assign role"})
@@ -117,7 +143,7 @@ func (h *RoleHandler) RemoveRole(c echo.Context) error {
 	roomID := c.Param("room_id")
 	userID := c.Param("user_id")
 
-	err := h.RoleService.RemoveRole(roomID, userID)
+	err := h.RoleService.RemoveRole(c.Request().Context(), roomID, userID)
 	if err != nil {
 		h.logger.Error(c.Request().Context(), "failed to remove role", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to remove role"})
@@ -130,7 +156,7 @@ func (h *RoleHandler) GetUserRole(c echo.Context) error {
 	roomID := c.Param("room_id")
 	userID := c.Param("user_id")
 
-	role, err := h.RoleService.GetUserRole(roomID, userID)
+	role, err := h.RoleService.GetUserRole(c.Request().Context(), roomID, userID)
 	if err != nil {
 		h.logger.Error(c.Request().Context(), "failed to get user role", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get user role"})

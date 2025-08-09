@@ -1,14 +1,14 @@
 package middleware
 
 import (
-	"context"
 	"crypto/rsa"
-	"go.uber.org/zap"
 	"net/http"
 	"room_service/internal/service"
 	"room_service/pkg/jwt"
 	"room_service/pkg/logger"
 	"strings"
+
+	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
 )
@@ -21,14 +21,23 @@ func AuthMiddleware(publicKey *rsa.PublicKey) echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Missing Authorization header"})
 			}
 
-			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-			if tokenString == "" {
+			authParts := strings.SplitN(authHeader, " ", 2)
+			if len(authParts) != 2 || strings.ToLower(authParts[0]) != "bearer" {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token format"})
+			}
+
+			tokenString := authParts[1]
+			if tokenString == "" {
+				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Empty token"})
 			}
 
 			userID, err := jwt.ParseJWT(tokenString, publicKey)
 			if err != nil {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid or expired token"})
+			}
+
+			if userID == "" {
+				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Missing user ID in token"})
 			}
 
 			c.Set("userID", userID)
@@ -50,9 +59,10 @@ func RequirePermission(roleService service.RoleService, log logger.Logger, permi
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 			}
 
-			hasPermission, err := roleService.CheckPermission(roomID, userID, permission)
+			ctx := c.Request().Context()
+			hasPermission, err := roleService.CheckPermission(ctx, roomID, userID, permission)
 			if err != nil {
-				log.Error(context.Background(), "failed to check permission", zap.Error(err))
+				log.Error(ctx, "failed to check permission", zap.Error(err))
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to check permissions"})
 			}
 

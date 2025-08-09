@@ -1,9 +1,3 @@
-CREATE TABLE users (
-                       id UUID PRIMARY KEY,
-                       username VARCHAR(255) NOT NULL,
-                       created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE rooms (
                        id UUID PRIMARY KEY,
                        name VARCHAR(255) NOT NULL,
@@ -13,8 +7,7 @@ CREATE TABLE rooms (
                        description TEXT,
                        owner_id UUID NOT NULL,
                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                       updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+                       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE roles (
@@ -25,8 +18,7 @@ CREATE TABLE roles (
                        priority INTEGER,
                        permissions BIGINT,
                        created_at TIMESTAMP NOT NULL,
-                       updated_at TIMESTAMP NOT NULL,
-                       FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+                       updated_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE room_members (
@@ -36,7 +28,6 @@ CREATE TABLE room_members (
                               joined_at TIMESTAMP NOT NULL,
                               PRIMARY KEY (room_id, user_id),
                               FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
-                              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                               FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL
 );
 
@@ -47,7 +38,5 @@ CREATE TABLE room_invites (
                               sent_by_id UUID NOT NULL,
                               status VARCHAR(50) NOT NULL CHECK (status IN ('pending', 'accepted', 'declined')),
                               sent_at TIMESTAMP NOT NULL,
-                              FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
-                              FOREIGN KEY (invited_id) REFERENCES users(id) ON DELETE CASCADE,
-                              FOREIGN KEY (sent_by_id) REFERENCES users(id) ON DELETE CASCADE
+                              FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
