@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"room_service/internal/models"
+	"room_service/pkg/logger"
+
+	"go.uber.org/zap"
 )
 
 type RoomMemberStorage interface {
@@ -15,11 +18,15 @@ type RoomMemberStorage interface {
 }
 
 type RoomMemberRepo struct {
-	db *sql.DB
+	db     *sql.DB
+	logger logger.Logger
 }
 
-func NewRoomMemberStorage(db *sql.DB) *RoomMemberRepo {
-	return &RoomMemberRepo{db: db}
+func NewRoomMemberStorage(db *sql.DB, log logger.Logger) *RoomMemberRepo {
+	return &RoomMemberRepo{
+		db:     db,
+		logger: log,
+	}
 }
 
 func (r *RoomMemberRepo) IsMember(ctx context.Context, roomID, userID string) (bool, error) {
@@ -78,7 +85,11 @@ func (r *RoomMemberRepo) ListMembers(ctx context.Context, roomID string) ([]mode
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			r.logger.Error(ctx, "failed to close rows", zap.Error(err))
+		}
+	}()
 
 	var members []models.RoomMember
 	for rows.Next() {

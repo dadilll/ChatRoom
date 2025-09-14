@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"room_service/internal/models"
+	"room_service/pkg/logger"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type RoleStorage interface {
@@ -20,11 +23,15 @@ type RoleStorage interface {
 }
 
 type roleStorage struct {
-	db *sql.DB
+	db     *sql.DB
+	logger logger.Logger
 }
 
-func NewRoleStorage(db *sql.DB) RoleStorage {
-	return &roleStorage{db: db}
+func NewRoleStorage(db *sql.DB, log logger.Logger) RoleStorage {
+	return &roleStorage{
+		db:     db,
+		logger: log,
+	}
 }
 
 func (s *roleStorage) CreateRole(ctx context.Context, role *models.Role) error {
@@ -86,7 +93,11 @@ func (s *roleStorage) GetRoomRoles(ctx context.Context, roomID string) ([]*model
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.Error(ctx, "failed to close rows", zap.Error(err))
+		}
+	}()
 
 	var roles []*models.Role
 	for rows.Next() {

@@ -21,7 +21,11 @@ func StartKafkaConsumer(brokerAddr, topic string, handler handler.Handler) {
 		GroupID:     "notification-group",
 		StartOffset: kafka.LastOffset,
 	})
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Printf("Ошибка закрытия Kafka reader: %v", err)
+		}
+	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

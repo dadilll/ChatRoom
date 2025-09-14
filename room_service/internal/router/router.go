@@ -27,9 +27,9 @@ type Dependencies struct {
 func setupDependencies(logger logger.Logger, db *sqlx.DB, publicKey *rsa.PublicKey) *Dependencies {
 	val := validator.New()
 	roomStorage := storage.NewRoomStorage(db.DB)
-	roleStorage := storage.NewRoleStorage(db.DB)
-	memberStorage := storage.NewRoomMemberStorage(db.DB)
-	inviteStorage := storage.NewPostgresInviteStorage(db.DB)
+	roleStorage := storage.NewRoleStorage(db.DB, logger)
+	memberStorage := storage.NewRoomMemberStorage(db.DB, logger)
+	inviteStorage := storage.NewPostgresInviteStorage(db.DB, logger)
 	inviteService := service.NewInviteService(inviteStorage)
 
 	roomService := service.NewRoomService(logger, roomStorage)

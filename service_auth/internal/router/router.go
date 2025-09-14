@@ -6,20 +6,20 @@ import (
 	middleware "service_auth/internal/middelware"
 	"service_auth/internal/service"
 	"service_auth/internal/storage"
-	"service_auth/pkg/kafka"
 	"service_auth/pkg/logger"
+	kafka "service_auth/pkg/producer"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 )
 
-func SetupRoutes(e *echo.Echo, db *sqlx.DB, Logger logger.Logger, privateKey *rsa.PrivateKey, rdb *redis.Client, kafkaWriter *kafka.KafkaWriter, publicKey *rsa.PublicKey) {
+func SetupRoutes(e *echo.Echo, db *sqlx.DB, logger logger.Logger, privateKey *rsa.PrivateKey, rdb *redis.Client, kafkaWriter *kafka.KafkaWriter, publicKey *rsa.PublicKey) {
 	userStorage := storage.NewUserStorage(db.DB)
 	userStorageRedis := storage.NewRedisStorage(rdb)
 
-	userService := service.NewUserService(userStorage, userStorageRedis, Logger, privateKey, kafkaWriter)
-	userHandler := handler.NewUserHandler(userService, Logger)
+	userService := service.NewUserService(userStorage, userStorageRedis, logger, privateKey, kafkaWriter)
+	userHandler := handler.NewUserHandler(userService, logger)
 
 	e.POST("api/v1/auth/login", userHandler.Login)
 	e.POST("api/v1/auth/register", userHandler.Register)

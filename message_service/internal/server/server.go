@@ -2,25 +2,24 @@ package server
 
 import (
 	"context"
-	"crypto/rsa"
 	"fmt"
+	"message_service/internal/router"
+	"message_service/pkg/logger"
 	"net/http"
 	"os"
 	"os/signal"
-	"room_service/internal/router"
-	"room_service/pkg/logger"
 	"syscall"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 )
 
-func New(db *sqlx.DB, logger logger.Logger, publicKey *rsa.PublicKey) *echo.Echo {
+func New() *echo.Echo {
 	e := echo.New()
-	router.SetupRoutes(e, logger, db, publicKey)
+	router.SetupRoutes(e)
 	return e
 }
+
 func Start(server *echo.Echo, logger logger.Logger, port int) *http.Server {
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -36,11 +35,12 @@ func Start(server *echo.Echo, logger logger.Logger, port int) *http.Server {
 
 	return httpServer
 }
+
 func WaitForShutdown(httpServer *http.Server, logger logger.Logger) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
 	<-stop
+
 	logger.Info(context.Background(), "Received shutdown signal, shutting down gracefully...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

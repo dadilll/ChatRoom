@@ -7,8 +7,8 @@ import (
 	"service_auth/pkg/db/postgres"
 	"service_auth/pkg/db/redis"
 	"service_auth/pkg/jwt"
-	"service_auth/pkg/kafka"
 	"service_auth/pkg/logger"
+	kafka "service_auth/pkg/producer"
 )
 
 const serviceName = "Auth_service"

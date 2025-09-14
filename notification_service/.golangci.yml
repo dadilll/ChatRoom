@@ -1,0 +1,21 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - govet        # общие ошибки кода
+    - errcheck     # непроверенные ошибки
+    - gosimple     # упрощения кода
+    - staticcheck  # дополнительные проверки
+    - unused       # неиспользуемый код
+    - ineffassign  # ненужные присваивания
+    - gocritic     # полезные проверки
+    - gofmt        # проверка форматирования
+    - goimports    # проверка импорта
+
+issues:
+  exclude-use-default: false
+
+exclude:
+  - "_test.go"  

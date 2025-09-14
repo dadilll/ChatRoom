@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"room_service/internal/models"
 	"room_service/internal/storage"
+
+	"github.com/google/uuid"
 )
 
 type InviteService interface {
@@ -31,28 +33,51 @@ func (s *inviteServiceImpl) NewInvite(ctx context.Context, roomID, invitedID, se
 		RoomID:    roomID,
 		InvitedID: invitedID,
 		SentByID:  sentByID,
-		Status:    "pending",
+		Status:    models.InviteStatusPending,
 		SentAt:    time.Now(),
 	}
 
 	if err := s.store.CreateInvite(ctx, invite); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create invite: %w", err)
 	}
 	return invite, nil
 }
 
 func (s *inviteServiceImpl) GetUserInvites(ctx context.Context, userID string) ([]*models.RoomInvite, error) {
-	return s.store.GetInvitesByUser(ctx, userID)
+	invites, err := s.store.GetInvitesByUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get invites by user: %w", err)
+	}
+	return invites, nil
 }
 
 func (s *inviteServiceImpl) AcceptInvite(ctx context.Context, inviteID string) error {
-	return s.store.UpdateInviteStatus(ctx, inviteID, "accepted")
+	return s.updateInviteStatus(ctx, inviteID, models.InviteStatusAccepted)
 }
 
 func (s *inviteServiceImpl) DeclineInvite(ctx context.Context, inviteID string) error {
-	return s.store.UpdateInviteStatus(ctx, inviteID, "declined")
+	return s.updateInviteStatus(ctx, inviteID, models.InviteStatusDeclined)
 }
 
 func (s *inviteServiceImpl) DeleteInvite(ctx context.Context, inviteID string) error {
-	return s.store.DeleteInvite(ctx, inviteID)
+	if err := s.store.DeleteInvite(ctx, inviteID); err != nil {
+		return fmt.Errorf("delete invite: %w", err)
+	}
+	return nil
+}
+
+func (s *inviteServiceImpl) updateInviteStatus(ctx context.Context, inviteID, newStatus string) error {
+	invite, err := s.store.GetInviteByID(ctx, inviteID)
+	if err != nil {
+		return fmt.Errorf("get invite by id: %w", err)
+	}
+
+	if invite.Status != models.InviteStatusPending {
+		return fmt.Errorf("invite already processed: current status = %s", invite.Status)
+	}
+
+	if err := s.store.UpdateInviteStatus(ctx, inviteID, newStatus); err != nil {
+		return fmt.Errorf("update invite status: %w", err)
+	}
+	return nil
 }

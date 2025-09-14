@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"message_service/internal/config"
+	"message_service/internal/server"
 	"message_service/pkg/logger"
 )
 
@@ -15,7 +16,13 @@ func main() {
 
 	cfg := config.New()
 	if cfg == nil {
-		Logger.Error(ctx, "ERROR: config is nil")
+		Logger.Error(ctx, "config is nil")
 		return
 	}
+
+	e := server.New()
+
+	httpServer := server.Start(e, Logger, cfg.HTTPServerPort)
+
+	server.WaitForShutdown(httpServer, Logger)
 }

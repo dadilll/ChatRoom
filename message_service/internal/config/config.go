@@ -8,7 +8,6 @@ import (
 
 type Config struct {
 	HTTPServerPort int    `env:"HTTP_SERVER_PORT" env-default:"8080"`
-	PrivateKeyPath string `env:"PRIVATE_KEY_PATH" env-default:"key/private.pem"`
 	PublicKeyPath  string `env:"PUBLIC_KEY" env-default:"key/public.pem"`
 }
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	postgres "service_auth/pkg/db/postgres"
 	redis "service_auth/pkg/db/redis"
-	"service_auth/pkg/kafka"
+	kafka "service_auth/pkg/producer"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
