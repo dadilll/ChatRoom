@@ -13,6 +13,9 @@ Chat service built in Go with a microservices architecture.
 - Message Service
 - Gateway Service
 
+## API Documentation
+API documentation will be added once Swagger is integrated into the project.
+
 ## How to Run
 1. Clone the repository
 2. Configure `.env`
