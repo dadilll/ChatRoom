@@ -2,6 +2,7 @@ package ws
 
 import (
 	"fmt"
+	"message_service/internal/service"
 )
 
 type Room struct {
@@ -10,15 +11,17 @@ type Room struct {
 	broadcast  chan []byte
 	Register   chan *Client
 	unregister chan *Client
+	service    service.MessageService
 }
 
-func NewRoom(id string) *Room {
+func NewRoom(id string, service service.MessageService) *Room {
 	return &Room{
 		ID:         id,
 		clients:    make(map[*Client]bool),
-		broadcast:  make(chan []byte),
+		broadcast:  make(chan []byte, 512),
 		Register:   make(chan *Client),
 		unregister: make(chan *Client),
+		service:    service,
 	}
 }
 
@@ -46,5 +49,13 @@ func (r *Room) Run() {
 				}
 			}
 		}
+	}
+}
+
+func (r *Room) BroadcastMessage(msg []byte) {
+	select {
+	case r.broadcast <- msg:
+	default:
+		fmt.Println("Broadcast channel full, message dropped for room:", r.ID)
 	}
 }

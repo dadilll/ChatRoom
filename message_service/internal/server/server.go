@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	kafka "message_service/internal/kafka/producer"
 	"message_service/internal/router"
+	"message_service/internal/service"
 	"message_service/pkg/logger"
 	"net/http"
 	"os"
@@ -14,9 +16,9 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func New() *echo.Echo {
+func New(msgService service.MessageService, kafkaWriter *kafka.KafkaWriter) *echo.Echo {
 	e := echo.New()
-	router.SetupRoutes(e)
+	router.SetupRoutes(e, msgService, kafkaWriter)
 	return e
 }
 

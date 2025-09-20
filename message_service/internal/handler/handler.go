@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	kafka "message_service/internal/kafka/producer"
 	"message_service/internal/transport/ws"
 
 	"github.com/gorilla/websocket"
@@ -13,7 +14,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func WebSocketHandler(hub *ws.Hub) echo.HandlerFunc {
+func WebSocketHandler(hub *ws.Hub, kafkaWriter *kafka.KafkaWriter) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		roomID := c.Param("roomID")
 		conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
@@ -22,7 +23,7 @@ func WebSocketHandler(hub *ws.Hub) echo.HandlerFunc {
 		}
 
 		room := hub.GetRoom(roomID)
-		client := ws.NewClient(room, conn)
+		client := ws.NewClient(room, conn, kafkaWriter)
 		room.Register <- client
 
 		go client.ReadPump()
